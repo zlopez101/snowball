@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timezone
+from enum import Enum
 
 from pydantic import EmailStr
 from sqlalchemy import DateTime
@@ -105,6 +106,137 @@ class ItemPublic(ItemBase):
 
 class ItemsPublic(SQLModel):
     data: list[ItemPublic]
+    count: int
+
+
+class CampaignStatus(str, Enum):
+    DRAFT = "draft"
+    ACTIVE = "active"
+    PAUSED = "paused"
+    ARCHIVED = "archived"
+
+
+class OfficeType(str, Enum):
+    SENATE = "senate"
+    HOUSE = "house"
+    GOVERNOR = "governor"
+    INSTITUTION = "institution"
+
+
+class ActionType(str, Enum):
+    CALL = "call"
+    EMAIL = "email"
+    BOYCOTT = "boycott"
+    EVENT = "event"
+
+
+class CampaignBase(SQLModel):
+    slug: str = Field(unique=True, index=True, min_length=1, max_length=100)
+    title: str = Field(min_length=1, max_length=255)
+    description: str = Field(min_length=1, max_length=4000)
+    policy_topic: str = Field(min_length=1, max_length=100)
+    status: CampaignStatus = CampaignStatus.DRAFT
+
+
+class CampaignCreate(CampaignBase):
+    pass
+
+
+class Campaign(CampaignBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),  # type: ignore
+    )
+
+
+class CampaignPublic(CampaignBase):
+    id: uuid.UUID
+    created_at: datetime | None = None
+
+
+class CampaignsPublic(SQLModel):
+    data: list[CampaignPublic]
+    count: int
+
+
+class RepresentativeTargetBase(SQLModel):
+    office_type: OfficeType
+    office_name: str = Field(min_length=1, max_length=255)
+    state_code: str | None = Field(default=None, min_length=2, max_length=2)
+    district_code: str | None = Field(default=None, max_length=10)
+    contact_phone: str | None = Field(default=None, max_length=30)
+    contact_email: EmailStr | None = Field(default=None, max_length=255)
+    is_active: bool = True
+
+
+class RepresentativeTargetCreate(RepresentativeTargetBase):
+    campaign_id: uuid.UUID
+
+
+class RepresentativeTarget(RepresentativeTargetBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    campaign_id: uuid.UUID = Field(
+        foreign_key="campaign.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),  # type: ignore
+    )
+
+
+class RepresentativeTargetPublic(RepresentativeTargetBase):
+    id: uuid.UUID
+    campaign_id: uuid.UUID
+    created_at: datetime | None = None
+
+
+class RepresentativeTargetsPublic(SQLModel):
+    data: list[RepresentativeTargetPublic]
+    count: int
+
+
+class ActionTemplateBase(SQLModel):
+    action_type: ActionType
+    title: str = Field(min_length=1, max_length=255)
+    script_text: str = Field(min_length=1, max_length=10000)
+    email_subject: str | None = Field(default=None, max_length=255)
+    email_body: str | None = Field(default=None, max_length=10000)
+    estimated_minutes: int = Field(default=3, ge=1, le=60)
+
+
+class ActionTemplateCreate(ActionTemplateBase):
+    campaign_id: uuid.UUID
+    target_id: uuid.UUID | None = None
+
+
+class ActionTemplate(ActionTemplateBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    campaign_id: uuid.UUID = Field(
+        foreign_key="campaign.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    target_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="representativetarget.id",
+        nullable=True,
+        ondelete="SET NULL",
+        index=True,
+    )
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),  # type: ignore
+    )
+
+
+class ActionTemplatePublic(ActionTemplateBase):
+    id: uuid.UUID
+    campaign_id: uuid.UUID
+    target_id: uuid.UUID | None = None
+    created_at: datetime | None = None
+
+
+class ActionTemplatesPublic(SQLModel):
+    data: list[ActionTemplatePublic]
     count: int
 
 
