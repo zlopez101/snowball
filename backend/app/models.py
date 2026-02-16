@@ -130,6 +130,25 @@ class ActionType(str, Enum):
     EVENT = "event"
 
 
+class VisibilityMode(str, Enum):
+    PRIVATE = "private"
+    COMMUNITY = "community"
+    PUBLIC_OPT_IN = "public_opt_in"
+
+
+class ActionLogStatus(str, Enum):
+    COMPLETED = "completed"
+    SKIPPED = "skipped"
+
+
+class ActionOutcome(str, Enum):
+    ANSWERED = "answered"
+    VOICEMAIL = "voicemail"
+    SENT = "sent"
+    ATTENDED = "attended"
+    UNKNOWN = "unknown"
+
+
 class CampaignBase(SQLModel):
     slug: str = Field(unique=True, index=True, min_length=1, max_length=100)
     title: str = Field(min_length=1, max_length=255)
@@ -238,6 +257,201 @@ class ActionTemplatePublic(ActionTemplateBase):
 class ActionTemplatesPublic(SQLModel):
     data: list[ActionTemplatePublic]
     count: int
+
+
+class UserProfileBase(SQLModel):
+    username: str = Field(unique=True, index=True, min_length=3, max_length=50)
+    state_code: str | None = Field(default=None, min_length=2, max_length=2)
+    district_code: str | None = Field(default=None, max_length=10)
+    timezone: str = Field(default="America/Chicago", min_length=2, max_length=100)
+    visibility_mode: VisibilityMode = VisibilityMode.PRIVATE
+
+
+class UserProfileCreate(UserProfileBase):
+    user_id: uuid.UUID
+
+
+class UserProfileUpdate(SQLModel):
+    username: str | None = Field(default=None, min_length=3, max_length=50)
+    state_code: str | None = Field(default=None, min_length=2, max_length=2)
+    district_code: str | None = Field(default=None, max_length=10)
+    timezone: str | None = Field(default=None, min_length=2, max_length=100)
+    visibility_mode: VisibilityMode | None = None
+
+
+class UserProfile(UserProfileBase, table=True):
+    user_id: uuid.UUID = Field(
+        foreign_key="user.id", primary_key=True, nullable=False, ondelete="CASCADE"
+    )
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),  # type: ignore
+    )
+
+
+class UserProfilePublic(UserProfileBase):
+    user_id: uuid.UUID
+    created_at: datetime | None = None
+
+
+class UserPrivacySettingsBase(SQLModel):
+    show_on_leaderboard: bool = False
+    show_streaks: bool = False
+    show_badges: bool = True
+    allow_shareable_card: bool = False
+    allow_referral_tracking: bool = True
+
+
+class UserPrivacySettingsUpdate(SQLModel):
+    show_on_leaderboard: bool | None = None
+    show_streaks: bool | None = None
+    show_badges: bool | None = None
+    allow_shareable_card: bool | None = None
+    allow_referral_tracking: bool | None = None
+
+
+class UserPrivacySettings(UserPrivacySettingsBase, table=True):
+    user_id: uuid.UUID = Field(
+        foreign_key="user.id", primary_key=True, nullable=False, ondelete="CASCADE"
+    )
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),  # type: ignore
+    )
+
+
+class UserPrivacySettingsPublic(UserPrivacySettingsBase):
+    user_id: uuid.UUID
+    created_at: datetime | None = None
+
+
+class DailyActionPlanBase(SQLModel):
+    target_actions_per_day: int = Field(default=3, ge=1, le=20)
+    active_weekdays_mask: str = Field(default="1111100", min_length=7, max_length=7)
+    is_active: bool = True
+
+
+class DailyActionPlanCreate(DailyActionPlanBase):
+    user_id: uuid.UUID
+    campaign_id: uuid.UUID
+
+
+class DailyActionPlan(DailyActionPlanBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="user.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    campaign_id: uuid.UUID = Field(
+        foreign_key="campaign.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),  # type: ignore
+    )
+
+
+class DailyActionPlanPublic(DailyActionPlanBase):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    campaign_id: uuid.UUID
+    created_at: datetime | None = None
+
+
+class UserActionLogBase(SQLModel):
+    campaign_id: uuid.UUID
+    target_id: uuid.UUID | None = None
+    template_id: uuid.UUID | None = None
+    action_type: ActionType
+    status: ActionLogStatus
+    outcome: ActionOutcome = ActionOutcome.UNKNOWN
+    confidence_score: int | None = Field(default=None, ge=1, le=5)
+
+
+class UserActionLogCreate(UserActionLogBase):
+    pass
+
+
+class UserActionLog(UserActionLogBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(
+        foreign_key="user.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    campaign_id: uuid.UUID = Field(
+        foreign_key="campaign.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    target_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="representativetarget.id",
+        nullable=True,
+        ondelete="SET NULL",
+        index=True,
+    )
+    template_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="actiontemplate.id",
+        nullable=True,
+        ondelete="SET NULL",
+        index=True,
+    )
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),  # type: ignore
+    )
+
+
+class UserActionLogPublic(UserActionLogBase):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    created_at: datetime | None = None
+
+
+class UserActionLogsPublic(SQLModel):
+    data: list[UserActionLogPublic]
+    count: int
+
+
+class TodayActionPublic(SQLModel):
+    campaign_id: uuid.UUID
+    campaign_title: str
+    template_id: uuid.UUID
+    target_id: uuid.UUID | None = None
+    action_type: ActionType
+    title: str
+    estimated_minutes: int
+
+
+class TodayActionsPublic(SQLModel):
+    data: list[TodayActionPublic]
+    count: int
+
+
+class ActionStatsPublic(SQLModel):
+    window_days: int
+    total_actions: int
+    completed_actions: int
+    skipped_actions: int
+    calls: int
+    emails: int
+    boycotts: int
+    events: int
+    last_action_at: datetime | None = None
+
+
+class OnboardingComplete(SQLModel):
+    username: str = Field(min_length=3, max_length=50)
+    state_code: str | None = Field(default=None, min_length=2, max_length=2)
+    district_code: str | None = Field(default=None, max_length=10)
+    timezone: str = Field(default="America/Chicago", min_length=2, max_length=100)
+    visibility_mode: VisibilityMode = VisibilityMode.PRIVATE
+    campaign_ids: list[uuid.UUID] = Field(default_factory=list)
+    target_actions_per_day: int = Field(default=3, ge=1, le=20)
+    active_weekdays_mask: str = Field(default="1111100", min_length=7, max_length=7)
+
+
+class OnboardingCompletePublic(SQLModel):
+    profile: UserProfilePublic
+    privacy: UserPrivacySettingsPublic
+    daily_plans_count: int
 
 
 # Generic message
