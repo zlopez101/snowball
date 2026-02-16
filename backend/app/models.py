@@ -437,6 +437,35 @@ class ActionStatsPublic(SQLModel):
     last_action_at: datetime | None = None
 
 
+class ImpactPublic(SQLModel):
+    window_days: int
+    total_actions: int
+    completed_actions: int
+    skipped_actions: int
+    calls: int
+    emails: int
+    boycotts: int
+    events: int
+    unique_participants: int
+    participant_range: str
+    last_action_at: datetime | None = None
+    campaign_id: uuid.UUID | None = None
+    campaign_title: str | None = None
+
+
+class ImpactShareCardPublic(SQLModel):
+    window_days: int
+    shareable: bool
+    visibility_mode: VisibilityMode
+    display_name: str | None = None
+    period_label: str
+    total_actions: int
+    completed_actions: int
+    calls: int
+    emails: int
+    message: str
+
+
 class OnboardingComplete(SQLModel):
     username: str = Field(min_length=3, max_length=50)
     state_code: str | None = Field(default=None, min_length=2, max_length=2)

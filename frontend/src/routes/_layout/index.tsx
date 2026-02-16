@@ -36,6 +36,30 @@ type UserProfile = {
   visibility_mode: string
 }
 
+type Impact = {
+  window_days: number
+  total_actions: number
+  completed_actions: number
+  skipped_actions: number
+  calls: number
+  emails: number
+  boycotts: number
+  events: number
+  unique_participants: number
+  participant_range: string
+}
+
+type ActionStats = {
+  window_days: number
+  total_actions: number
+  completed_actions: number
+  skipped_actions: number
+  calls: number
+  emails: number
+  boycotts: number
+  events: number
+}
+
 const weekdayOptions = [
   { key: "mon", label: "Mon" },
   { key: "tue", label: "Tue" },
@@ -95,6 +119,26 @@ function Dashboard() {
     queryFn: () => apiRequest<CampaignsResponse>("/api/v1/campaigns/?status=active"),
   })
 
+  const myStatsQuery = useQuery<ActionStats, Error>({
+    queryKey: ["actions", "stats", "7d"],
+    queryFn: () => apiRequest<ActionStats>("/api/v1/actions/me/stats?window=7d"),
+    enabled: !!profileQuery.data,
+  })
+
+  const platformImpactQuery = useQuery<Impact, Error>({
+    queryKey: ["impact", "platform", "7d"],
+    queryFn: () => apiRequest<Impact>("/api/v1/impact/platform?window=7d"),
+    enabled: !!profileQuery.data,
+  })
+
+  const firstCampaignId = campaignsQuery.data?.data[0]?.id
+  const campaignImpactQuery = useQuery<Impact, Error>({
+    queryKey: ["impact", "campaign", firstCampaignId, "7d"],
+    queryFn: () =>
+      apiRequest<Impact>(`/api/v1/impact/campaign/${firstCampaignId}?window=7d`),
+    enabled: !!profileQuery.data && !!firstCampaignId,
+  })
+
   useEffect(() => {
     if (!campaignsQuery.data?.data.length || selectedCampaignIds.length > 0) {
       return
@@ -129,6 +173,9 @@ function Dashboard() {
       showSuccessToast("Onboarding completed")
       await queryClient.invalidateQueries({ queryKey: ["profile", "me"] })
       await queryClient.invalidateQueries({ queryKey: ["actions", "today"] })
+      await queryClient.invalidateQueries({ queryKey: ["actions", "stats", "7d"] })
+      await queryClient.invalidateQueries({ queryKey: ["impact", "platform", "7d"] })
+      await queryClient.invalidateQueries({ queryKey: ["impact"] })
     },
     onError: (error: Error) => showErrorToast(error.message),
   })
@@ -303,9 +350,45 @@ function Dashboard() {
           </p>
         </CardContent>
       </Card>
-      <Button asChild>
-        <Link to="/actions">Go To Today&apos;s Actions</Link>
-      </Button>
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardDescription>Your completed (7d)</CardDescription>
+            <CardTitle>{myStatsQuery.data?.completed_actions ?? 0}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>Platform actions (7d)</CardDescription>
+            <CardTitle>{platformImpactQuery.data?.total_actions ?? 0}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardDescription>Participants range</CardDescription>
+            <CardTitle>{platformImpactQuery.data?.participant_range ?? "0"}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+      {campaignImpactQuery.data ? (
+        <Card className="max-w-3xl">
+          <CardHeader>
+            <CardTitle>Campaign Impact (7 days)</CardTitle>
+            <CardDescription>
+              Calls: {campaignImpactQuery.data.calls} | Emails: {campaignImpactQuery.data.emails} |
+              Completed: {campaignImpactQuery.data.completed_actions}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : null}
+      <div className="flex flex-wrap gap-3">
+        <Button asChild>
+          <Link to="/actions">Go To Today&apos;s Actions</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link to="/impact">View Impact Dashboard</Link>
+        </Button>
+      </div>
     </div>
   )
 }

@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.routes import (
     actions,
     campaigns,
+    impact,
     items,
     login,
     onboarding,
@@ -18,6 +19,7 @@ api_router.include_router(users.router)
 api_router.include_router(utils.router)
 api_router.include_router(items.router)
 api_router.include_router(campaigns.router)
+api_router.include_router(impact.router)
 api_router.include_router(onboarding.router)
 api_router.include_router(actions.router)
 
