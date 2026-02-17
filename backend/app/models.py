@@ -130,6 +130,12 @@ class ActionType(str, Enum):
     EVENT = "event"
 
 
+class ReferralChannel(str, Enum):
+    LINK = "link"
+    QR = "qr"
+    SOCIAL = "social"
+
+
 class VisibilityMode(str, Enum):
     PRIVATE = "private"
     COMMUNITY = "community"
@@ -464,6 +470,56 @@ class ImpactShareCardPublic(SQLModel):
     calls: int
     emails: int
     message: str
+
+
+class ReferralLinkCreate(SQLModel):
+    channel: ReferralChannel = ReferralChannel.LINK
+
+
+class ReferralClaimCreate(SQLModel):
+    code: str = Field(min_length=6, max_length=64)
+
+
+class Referral(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    referrer_user_id: uuid.UUID = Field(
+        foreign_key="user.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    referred_user_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="user.id",
+        nullable=True,
+        ondelete="SET NULL",
+        index=True,
+        unique=True,
+    )
+    code: str = Field(min_length=6, max_length=64, unique=True, index=True)
+    channel: ReferralChannel = ReferralChannel.LINK
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),  # type: ignore
+    )
+
+
+class ReferralPublic(SQLModel):
+    id: uuid.UUID
+    referrer_user_id: uuid.UUID
+    referred_user_id: uuid.UUID | None = None
+    code: str
+    channel: ReferralChannel
+    invite_url: str
+    created_at: datetime | None = None
+
+
+class ReferralsPublic(SQLModel):
+    data: list[ReferralPublic]
+    count: int
+
+
+class ReferralAssistsPublic(SQLModel):
+    window_days: int
+    recruited_users: int
+    assisted_actions: int
 
 
 class OnboardingComplete(SQLModel):

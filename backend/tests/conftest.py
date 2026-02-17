@@ -12,6 +12,7 @@ from app.models import (
     Campaign,
     DailyActionPlan,
     Item,
+    Referral,
     RepresentativeTarget,
     User,
     UserActionLog,
@@ -36,6 +37,8 @@ def db() -> Generator[Session, None, None]:
         statement = delete(UserPrivacySettings)
         session.execute(statement)
         statement = delete(UserProfile)
+        session.execute(statement)
+        statement = delete(Referral)
         session.execute(statement)
         statement = delete(ActionTemplate)
         session.execute(statement)

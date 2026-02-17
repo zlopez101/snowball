@@ -1,4 +1,4 @@
-import { ChartNoAxesColumn, Home, ListChecks, Users } from "lucide-react"
+import { ChartNoAxesColumn, Home, ListChecks, Share2, Users } from "lucide-react"
 
 import { SidebarAppearance } from "@/components/Common/Appearance"
 import { Logo } from "@/components/Common/Logo"
@@ -16,6 +16,7 @@ const baseItems: Item[] = [
   { icon: Home, title: "Dashboard", path: "/" },
   { icon: ListChecks, title: "Actions", path: "/actions" },
   { icon: ChartNoAxesColumn, title: "Impact", path: "/impact" },
+  { icon: Share2, title: "Referrals", path: "/referrals" },
 ]
 
 export function AppSidebar() {

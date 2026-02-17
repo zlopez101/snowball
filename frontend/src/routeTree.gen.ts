@@ -16,6 +16,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
 import { Route as LayoutImpactRouteImport } from './routes/_layout/impact'
+import { Route as LayoutReferralsRouteImport } from './routes/_layout/referrals'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutItemsRouteImport } from './routes/_layout/items'
 import { Route as LayoutActionsRouteImport } from './routes/_layout/actions'
@@ -55,6 +56,11 @@ const LayoutImpactRoute = LayoutImpactRouteImport.update({
   path: '/impact',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutReferralsRoute = LayoutReferralsRouteImport.update({
+  id: '/referrals',
+  path: '/referrals',
+  getParentRoute: () => LayoutRoute,
+} as any)
 const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -85,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/actions': typeof LayoutActionsRoute
   '/impact': typeof LayoutImpactRoute
   '/items': typeof LayoutItemsRoute
+  '/referrals': typeof LayoutReferralsRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
 }
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/actions': typeof LayoutActionsRoute
   '/impact': typeof LayoutImpactRoute
   '/items': typeof LayoutItemsRoute
+  '/referrals': typeof LayoutReferralsRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
 }
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/_layout/actions': typeof LayoutActionsRoute
   '/_layout/impact': typeof LayoutImpactRoute
   '/_layout/items': typeof LayoutItemsRoute
+  '/_layout/referrals': typeof LayoutReferralsRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/': typeof LayoutIndexRoute
 }
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
     | '/actions'
     | '/impact'
     | '/items'
+    | '/referrals'
     | '/settings'
     | '/'
   fileRoutesByTo: FileRoutesByTo
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/actions'
     | '/impact'
     | '/items'
+    | '/referrals'
     | '/settings'
     | '/'
   id:
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/_layout/actions'
     | '/_layout/impact'
     | '/_layout/items'
+    | '/_layout/referrals'
     | '/_layout/settings'
     | '/_layout/'
   fileRoutesById: FileRoutesById
@@ -213,6 +225,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutImpactRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/referrals': {
+      id: '/_layout/referrals'
+      path: '/referrals'
+      fullPath: '/referrals'
+      preLoaderRoute: typeof LayoutReferralsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/settings': {
       id: '/_layout/settings'
       path: '/settings'
@@ -249,6 +268,7 @@ interface LayoutRouteChildren {
   LayoutActionsRoute: typeof LayoutActionsRoute
   LayoutImpactRoute: typeof LayoutImpactRoute
   LayoutItemsRoute: typeof LayoutItemsRoute
+  LayoutReferralsRoute: typeof LayoutReferralsRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
 }
@@ -258,6 +278,7 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutActionsRoute: LayoutActionsRoute,
   LayoutImpactRoute: LayoutImpactRoute,
   LayoutItemsRoute: LayoutItemsRoute,
+  LayoutReferralsRoute: LayoutReferralsRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutIndexRoute: LayoutIndexRoute,
 }

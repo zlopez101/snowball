@@ -8,6 +8,7 @@ from app.api.routes import (
     login,
     onboarding,
     private,
+    referrals,
     users,
     utils,
 )
@@ -22,6 +23,7 @@ api_router.include_router(campaigns.router)
 api_router.include_router(impact.router)
 api_router.include_router(onboarding.router)
 api_router.include_router(actions.router)
+api_router.include_router(referrals.router)
 
 
 if settings.ENVIRONMENT == "local":

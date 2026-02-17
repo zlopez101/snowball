@@ -21,6 +21,34 @@ from app.models import (
 from tests.utils.user import create_random_user
 
 
+def _complete_onboarding(
+    client: TestClient, headers: dict[str, str], *, visibility_mode: str = "private"
+) -> str:
+    campaigns_response = client.get(
+        f"{settings.API_V1_STR}/campaigns/?status=active",
+        headers=headers,
+    )
+    assert campaigns_response.status_code == 200
+    campaign_id = campaigns_response.json()["data"][0]["id"]
+    username = f"impact_{uuid.uuid4().hex[:10]}"
+    response = client.post(
+        f"{settings.API_V1_STR}/onboarding/complete",
+        headers=headers,
+        json={
+            "username": username,
+            "state_code": "TX",
+            "district_code": "01",
+            "timezone": "America/Chicago",
+            "visibility_mode": visibility_mode,
+            "campaign_ids": [campaign_id],
+            "target_actions_per_day": 2,
+            "active_weekdays_mask": "1111111",
+        },
+    )
+    assert response.status_code == 200
+    return username
+
+
 def test_read_platform_impact_returns_aggregate_metrics(
     client: TestClient, normal_user_token_headers: dict[str, str], db: Session
 ) -> None:
@@ -165,41 +193,52 @@ def test_read_campaign_impact_not_found(
 
 
 def test_read_representative_impact_returns_target_scoped_metrics(
-    client: TestClient, normal_user_token_headers: dict[str, str]
+    client: TestClient, normal_user_token_headers: dict[str, str], db: Session
 ) -> None:
-    campaigns_response = client.get(
-        f"{settings.API_V1_STR}/campaigns/?status=active",
-        headers=normal_user_token_headers,
+    campaign = Campaign.model_validate(
+        CampaignCreate(
+            slug=f"rep-impact-{uuid.uuid4().hex[:8]}",
+            title="Representative Impact Campaign",
+            description="Campaign for representative impact route tests",
+            policy_topic="test",
+            status=CampaignStatus.ACTIVE,
+        )
     )
-    assert campaigns_response.status_code == 200
-    campaign_id = campaigns_response.json()["data"][0]["id"]
+    db.add(campaign)
+    db.commit()
+    db.refresh(campaign)
 
-    targets_response = client.get(
-        f"{settings.API_V1_STR}/campaigns/{campaign_id}/targets",
-        headers=normal_user_token_headers,
+    target = RepresentativeTarget(
+        campaign_id=campaign.id,
+        office_type=OfficeType.HOUSE,
+        office_name="Representative Impact Target",
+        state_code="TX",
+        district_code="10",
     )
-    assert targets_response.status_code == 200
-    target_id = targets_response.json()["data"][0]["id"]
+    db.add(target)
+    db.commit()
+    db.refresh(target)
 
-    templates_response = client.get(
-        f"{settings.API_V1_STR}/campaigns/{campaign_id}/templates",
-        headers=normal_user_token_headers,
+    template = ActionTemplate(
+        campaign_id=campaign.id,
+        target_id=target.id,
+        action_type=ActionType.CALL,
+        title="Call the representative",
+        script_text="Please support this campaign.",
+        estimated_minutes=3,
     )
-    assert templates_response.status_code == 200
-    template = next(
-        item
-        for item in templates_response.json()["data"]
-        if item["target_id"] == target_id
-    )
+    db.add(template)
+    db.commit()
+    db.refresh(template)
 
     create_response = client.post(
         f"{settings.API_V1_STR}/actions/log",
         headers=normal_user_token_headers,
         json={
-            "campaign_id": campaign_id,
-            "target_id": target_id,
-            "template_id": template["id"],
-            "action_type": template["action_type"],
+            "campaign_id": str(campaign.id),
+            "target_id": str(target.id),
+            "template_id": str(template.id),
+            "action_type": template.action_type.value,
             "status": "completed",
             "outcome": "answered",
             "confidence_score": 4,
@@ -208,14 +247,14 @@ def test_read_representative_impact_returns_target_scoped_metrics(
     assert create_response.status_code == 200
 
     response = client.get(
-        f"{settings.API_V1_STR}/impact/representative/{target_id}?window=30d",
+        f"{settings.API_V1_STR}/impact/representative/{target.id}?window=30d",
         headers=normal_user_token_headers,
     )
     assert response.status_code == 200
     payload = response.json()
     assert payload["total_actions"] >= 1
     assert payload["completed_actions"] >= 1
-    assert payload["campaign_id"] == campaign_id
+    assert payload["campaign_id"] == str(campaign.id)
 
 
 def test_read_representative_impact_not_found(
@@ -232,6 +271,7 @@ def test_read_representative_impact_not_found(
 def test_share_card_is_private_by_default(
     client: TestClient, normal_user_token_headers: dict[str, str]
 ) -> None:
+    _complete_onboarding(client, normal_user_token_headers, visibility_mode="private")
     response = client.get(
         f"{settings.API_V1_STR}/impact/me/share-card?window=7d",
         headers=normal_user_token_headers,
@@ -247,6 +287,9 @@ def test_share_card_is_private_by_default(
 def test_share_card_includes_username_only_for_public_opt_in(
     client: TestClient, normal_user_token_headers: dict[str, str], db: Session
 ) -> None:
+    username = _complete_onboarding(
+        client, normal_user_token_headers, visibility_mode="public_opt_in"
+    )
     me_response = client.get(
         f"{settings.API_V1_STR}/users/me",
         headers=normal_user_token_headers,
@@ -299,14 +342,6 @@ def test_share_card_includes_username_only_for_public_opt_in(
     )
     db.add(plan)
     db.commit()
-
-    update_response = client.patch(
-        f"{settings.API_V1_STR}/profile/me",
-        headers=normal_user_token_headers,
-        json={"visibility_mode": "public_opt_in"},
-    )
-    assert update_response.status_code == 200
-    username = update_response.json()["username"]
 
     privacy_response = client.patch(
         f"{settings.API_V1_STR}/privacy/me",
